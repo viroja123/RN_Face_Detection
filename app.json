@@ -2,6 +2,46 @@
   "expo": {
     "name": "myFaceDetection",
     "slug": "myFaceDetection",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "android": {
+      "package": "com.icsankit.myFaceDetection",
+      "permissions": ["android.permission.RECORD_AUDIO"]
+    },
+    "ios": {
+      "bundleIdentifier": "com.icsankit.myFaceDetection"
+    },
+    "plugins": [
+      [
+        "react-native-vision-camera",
+        {
+          "cameraPermissionText": "myFaceDetection needs access to your Camera."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26,
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "34.0.0"
+          },
+          "ios": {
+            "deploymentTarget": "15.1",
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow myFaceDetection to use the microphone.",
+          "speechRecognitionPermission": "Allow myFaceDetection to use speech recognition.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
+        }
+      ]
+    ]
   }
 }

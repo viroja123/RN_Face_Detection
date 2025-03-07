@@ -1,4 +1,4 @@
-package com.myfacedetection
+package com.icsankit.myFaceDetection
 
 import android.app.Application
 import android.content.res.Configuration
