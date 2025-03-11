@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useReducer,
+} from "react";
 import {
   View,
   Text,
@@ -6,12 +12,16 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  useWindowDimensions,
 } from "react-native";
 import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
 } from "expo-speech-recognition";
 import levenshtein from "fast-levenshtein";
+import { useCameraDevice, useFrameProcessor } from "react-native-vision-camera";
+import { Camera } from "react-native-vision-camera-face-detector";
+import { AnimatedCircularProgress } from "react-native-circular-progress";
 
 // Sample Sentences for Testing
 const SAMPLE_SENTENCES = [
@@ -25,6 +35,9 @@ const SAMPLE_SENTENCES = [
   "Do not count your chickens before they are hatched.",
 ];
 
+const initialState = {
+  faceDetected: false,
+};
 const MATCH_THRESHOLD = 8;
 
 const SpeechToTextScreen = () => {
@@ -35,7 +48,33 @@ const SpeechToTextScreen = () => {
   const [hasPermission, setHasPermission] = useState(false);
   const [recognizing, setRecognizing] = useState(false);
 
-  // Function to get a random sentence
+  const { width, height } = useWindowDimensions();
+  const camera = useRef(null);
+  const cameraDevice = useCameraDevice("front");
+
+  const detectionReducer = (state, action) => {
+    try {
+      console.log("action", action);
+      switch (action.type) {
+        case "FACE_DETECTED":
+          if (action.value === "yes") {
+            return {
+              ...state,
+              faceDetected: true,
+            };
+          } else {
+            return initialState;
+          }
+
+        default:
+          throw new Error("Unexpeceted action type.");
+      }
+    } catch (error) {
+      console.error("error on detection reducer : ", error);
+    }
+  };
+  const [state, dispatch] = useReducer(detectionReducer, initialState);
+
   const getRandomSentence = useCallback(() => {
     const randomIndex = Math.floor(Math.random() * SAMPLE_SENTENCES.length);
     setCurrentSentence(SAMPLE_SENTENCES[randomIndex]);
@@ -44,7 +83,6 @@ const SpeechToTextScreen = () => {
     setIsMatched(false);
   }, []);
 
-  // Request Microphone Permissions on Mount
   useEffect(() => {
     (async () => {
       try {
@@ -141,10 +179,35 @@ const SpeechToTextScreen = () => {
     }
   };
 
+  const handleFacesDetected = useCallback((face) => {
+    try {
+      if (face[0]) {
+        console.log("Face Detected------->");
+        if (!state.faceDetected) {
+          dispatch({ type: "FACE_DETECTED", value: "yes" });
+        }
+        console.log("Face Detected!!!!!!!!!!");
+      } else {
+        if (state.faceDetected) {
+          dispatch({ type: "FACE_DETECTED", value: "no" });
+        }
+        console.log("No face detected");
+      }
+    } catch (error) {
+      if (state.faceDetected) {
+        dispatch({ type: "FACE_DETECTED", value: "no" });
+      }
+      console.log("error--->", error);
+    }
+  });
+
+  const frameProcessor = useFrameProcessor((frame) => {
+    "worklet";
+    console.log(`Frame: ${frame.width}x${frame.height} (${frame.pixelFormat})`);
+  }, []);
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Speech Recognition Test</Text>
-
       <View style={styles.sentenceContainer}>
         <Text style={styles.sentenceTitle}>Please read aloud:</Text>
         <Text style={styles.sentenceTxt}>{currentSentence}</Text>
@@ -155,7 +218,41 @@ const SpeechToTextScreen = () => {
           <Text style={styles.btnText}>Get New Sentence</Text>
         </TouchableOpacity>
       </View>
-
+      <View style={{ alignSelf: "center" }}>
+        <AnimatedCircularProgress
+          size={290}
+          width={6}
+          // fill={(currentPosition / (labels.length - 1)) * 100}
+          tintColor={"#4BB543"}
+          backgroundColor={"#aaaaaa"}
+        >
+          {() =>
+            cameraDevice ? (
+              <Camera
+                ref={camera}
+                style={StyleSheet.absoluteFill}
+                device={cameraDevice}
+                isActive={true}
+                faceDetectionCallback={handleFacesDetected}
+                faceDetectionOptions={{
+                  performanceMode: "accurate",
+                  classificationMode: "all",
+                  contourMode: "all",
+                  landmarkMode: "all",
+                  windowWidth: width,
+                  windowHeight: height,
+                  trackingEnabled: false,
+                  autoMode: true,
+                }}
+                frameProcessor={frameProcessor}
+                pixelFormat="yuv"
+              />
+            ) : (
+              <Text style={styles.noCameraText}>No Camera Found</Text>
+            )
+          }
+        </AnimatedCircularProgress>
+      </View>
       <TouchableOpacity
         style={[styles.recordBtn, recognizing ? styles.recordingBtn : null]}
         onPress={recognizing ? stopSpeechRecognition : startAudioRecording}
@@ -166,6 +263,19 @@ const SpeechToTextScreen = () => {
         </Text>
       </TouchableOpacity>
 
+      {/* <TouchableOpacity
+        style={[
+          styles.recordBtn,
+          recognizing ? styles.recordingBtn : null,
+          !state.faceDetected ? { backgroundColor: "#ccc" } : null, // Disable styling
+        ]}
+        onPress={recognizing ? stopSpeechRecognition : startAudioRecording}
+        disabled={!hasPermission || !state.faceDetected} // Disable button if no face detected
+      >
+        <Text style={styles.btnText}>
+          {recognizing ? "Stop Recording" : "Start Recording"}
+        </Text>
+      </TouchableOpacity> */}
       <View style={styles.resultContainer}>
         <Text style={styles.resultTitle}>Your speech:</Text>
         <Text style={[styles.resultTitle]}>Match: {matchPercentage}%</Text>
@@ -183,10 +293,10 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: "bold", marginBottom: 20, color: "#333" },
   sentenceContainer: {
     backgroundColor: "white",
-    padding: 15,
+    paddingHorizontal: 15,
     borderRadius: 8,
     width: "100%",
-    marginBottom: 20,
+    marginBottom: 10,
   },
   sentenceTitle: {
     fontSize: 16,
@@ -214,7 +324,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     width: "70%",
     alignItems: "center",
-    marginBottom: 20,
+    marginVertical: 20,
   },
   recordingBtn: { backgroundColor: "#e74c3c" },
   btnText: { color: "white", fontSize: 16, fontWeight: "bold" },
@@ -228,6 +338,11 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: "#D3D3D3",
     borderRadius: 8,
+  },
+  noCameraText: {
+    color: "red",
+    fontSize: 16,
+    textAlign: "center",
   },
 });
 

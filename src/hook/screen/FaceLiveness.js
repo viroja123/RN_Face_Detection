@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   SafeAreaView,
   StyleSheet,
@@ -33,8 +33,10 @@ const FaceLiveness = ({ navigation }) => {
   const [img2, setImg2] = useState(require("../../images/portrait.png"));
   const [similarity, setSimilarity] = useState("nil");
   const [liveness, setLiveness] = useState("nil");
-  let image1 = new MatchFacesImage();
-  let image2 = new MatchFacesImage();
+  // let image1 = new MatchFacesImage();
+  // let image2 = new MatchFacesImage();
+  const image1Ref = useRef(new MatchFacesImage());
+  const image2Ref = useRef(new MatchFacesImage());
 
   useEffect(() => {
     const eventManager = new NativeEventEmitter(RNFaceApi);
@@ -102,7 +104,9 @@ const FaceLiveness = ({ navigation }) => {
             FaceSDK.startFaceCapture(
               null,
               (json) => {
+                // console.log("json", JSON.stringify(json));
                 const response = FaceCaptureResponse.fromJson(JSON.parse(json));
+                console.log("response", JSON.stringify(response), "-");
                 if (response.image?.image) {
                   setImage(first, response.image.image, Enum.ImageType.LIVE);
                 }
@@ -117,24 +121,24 @@ const FaceLiveness = ({ navigation }) => {
 
   const setImage = (first, base64, type) => {
     if (!base64) return;
-    console.log("base64", base64);
     setSimilarity("null");
     if (first) {
-      image1 = new MatchFacesImage();
-      image1.image = base64;
-      image1.imageType = type;
+      // Create a new MatchFacesImage and update the ref
+      image1Ref.current = new MatchFacesImage();
+      image1Ref.current.image = base64;
+      image1Ref.current.imageType = type;
       setImg1({ uri: `data:image/png;base64,${base64}` });
       setLiveness("null");
     } else {
-      image2 = new MatchFacesImage();
-      image2.image = base64;
-      image2.imageType = type;
+      // Create a new MatchFacesImage and update the ref
+      image2Ref.current = new MatchFacesImage();
+      image2Ref.current.image = base64;
+      image2Ref.current.imageType = type;
       setImg2({ uri: `data:image/png;base64,${base64}` });
     }
   };
 
   const checkAudio = () => {
-    console.log("navigation", navigation);
     navigation.navigate("AudioVerification");
   };
 
@@ -143,13 +147,22 @@ const FaceLiveness = ({ navigation }) => {
     setImg2(require("../../images/portrait.png"));
     setSimilarity("null");
     setLiveness("null");
-    image1 = new MatchFacesImage();
-    image2 = new MatchFacesImage();
+    image1Ref.current = new MatchFacesImage();
+    image2Ref.current = new MatchFacesImage();
   };
 
   const matchFaces = () => {
-    console.log("image1", image2, image1, image2);
-    if (!image1.image || !image2.image) return;
+    const image1 = image1Ref.current;
+    const image2 = image2Ref.current;
+    if (
+      image1 == null ||
+      image1.image == null ||
+      image1.image == "" ||
+      image2 == null ||
+      image2.image == null ||
+      image2.image == ""
+    )
+      return;
     setSimilarity("Processing...");
     const request = new MatchFacesRequest();
     request.images = [image1, image2];

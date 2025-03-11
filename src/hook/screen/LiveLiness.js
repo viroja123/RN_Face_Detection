@@ -259,6 +259,7 @@ const LiveLiness = ({ navigation }) => {
         const faceMidX = faceBounds.x + faceBounds.width / 2;
         const faceMidY = faceBounds.y + faceBounds.height / 2;
 
+   
         const isFaceInPreviewArea =
           faceMidY >= PREVIEW_MARGIN_TOP &&
           faceMidY <= PREVIEW_MARGIN_TOP + PREVIEW_SIZE &&

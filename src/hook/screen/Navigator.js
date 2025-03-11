@@ -11,9 +11,13 @@ const MainNavigator = () => {
   return (
     <Stack.Navigator>
       <Stack.Screen name="FaceLiveness" component={FaceLiveness} />
-      <Stack.Screen name="AudioVerification" component={AudioVerification} />
-      {/* <Stack.Screen name="Detection" component={Detection} />
-      <Stack.Screen name="LiveLiness" component={LiveLiness} /> */}
+      <Stack.Screen
+        name="AudioVerification"
+        component={AudioVerification}
+        options={{ headerTitle: "Speech Recognition Test" }}
+      />
+      {/* <Stack.Screen name="Detection" component={Detection} /> */}
+      {/* <Stack.Screen name="LiveLiness" component={LiveLiness} /> */}
     </Stack.Navigator>
   );
 };
