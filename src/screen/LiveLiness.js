@@ -26,7 +26,7 @@ import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
 } from "expo-speech-recognition";
-import { SAMPLE_SENTENCES } from "../../utils/constants";
+import { SAMPLE_SENTENCES } from "../utils/constants";
 import levenshtein from "fast-levenshtein";
 
 const LiveLiness = ({ navigation }) => {

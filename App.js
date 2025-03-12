@@ -1,10 +1,8 @@
-import { StatusBar } from "expo-status-bar";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
-import Detection from "./src/hook/screen/Detection";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import MainNavigator from "./src/hook/screen/Navigator";
+import MainNavigator from "./src/screen/Navigator.js";
 
 export default function App() {
   console.log("call the appp");

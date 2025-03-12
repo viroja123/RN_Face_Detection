@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   SafeAreaView,
   StyleSheet,
@@ -27,16 +27,36 @@ import FaceSDK, {
   RNFaceApi,
   LivenessNotification,
 } from "@regulaforensics/react-native-face-api";
+import { useFocusEffect } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const FaceLiveness = ({ navigation }) => {
-  const [img1, setImg1] = useState(require("../../images/portrait.png"));
-  const [img2, setImg2] = useState(require("../../images/portrait.png"));
+  const [img1, setImg1] = useState(require("../images/portrait.png"));
+  const [img2, setImg2] = useState(require("../images/portrait.png"));
   const [similarity, setSimilarity] = useState("nil");
   const [liveness, setLiveness] = useState("nil");
   // let image1 = new MatchFacesImage();
   // let image2 = new MatchFacesImage();
   const image1Ref = useRef(new MatchFacesImage());
   const image2Ref = useRef(new MatchFacesImage());
+  const REFERENCE_IMAGE_KEY = "reference_face_image";
+
+  useFocusEffect(
+    useCallback(() => {
+      const fetchImage = async () => {
+        try {
+          const uri = await AsyncStorage.getItem(REFERENCE_IMAGE_KEY);
+          if (uri) {
+            // setImageUri(uri);
+          }
+        } catch (error) {
+          console.error("Error fetching image from AsyncStorage:", error);
+        }
+      };
+
+      fetchImage();
+    }, [])
+  );
 
   useEffect(() => {
     const eventManager = new NativeEventEmitter(RNFaceApi);
@@ -139,12 +159,17 @@ const FaceLiveness = ({ navigation }) => {
   };
 
   const checkAudio = () => {
+    console.log("liveness", liveness);
     navigation.navigate("AudioVerification");
+    if (!liveness == "passed") {
+    } else {
+      Alert.alert("Please Complete the Liveness first");
+    }
   };
 
   const clearResults = () => {
-    setImg1(require("../../images/portrait.png"));
-    setImg2(require("../../images/portrait.png"));
+    setImg1(require("../images/portrait.png"));
+    setImg2(require("../images/portrait.png"));
     setSimilarity("null");
     setLiveness("null");
     image1Ref.current = new MatchFacesImage();
@@ -165,6 +190,7 @@ const FaceLiveness = ({ navigation }) => {
       return;
     setSimilarity("Processing...");
     const request = new MatchFacesRequest();
+    console.log("image1,image2---->>>>", image1, image2, "---111111");
     request.images = [image1, image2];
     FaceSDK.matchFaces(
       request,
@@ -241,15 +267,31 @@ const FaceLiveness = ({ navigation }) => {
             marginBottom: 10,
             width: 140,
           }}
-          onPress={matchFaces}
+          onPress={startLiveness}
         >
           <Text
             style={{ color: "#fff", fontWeight: "bold", textAlign: "center" }}
           >
-            Match
+            Liveness
           </Text>
         </TouchableOpacity>
-
+        <TouchableOpacity
+          style={{
+            backgroundColor: "#4285F4",
+            padding: 10,
+            borderRadius: 5,
+            alignItems: "center",
+            width: 140,
+            marginBottom: 10,
+          }}
+          onPress={checkAudio}
+        >
+          <Text
+            style={{ color: "#fff", fontWeight: "bold", textAlign: "center" }}
+          >
+            Audio Check
+          </Text>
+        </TouchableOpacity>
         <TouchableOpacity
           style={{
             backgroundColor: "#4285F4",
@@ -258,12 +300,12 @@ const FaceLiveness = ({ navigation }) => {
             marginBottom: 10,
             width: 140,
           }}
-          onPress={startLiveness}
+          onPress={matchFaces}
         >
           <Text
             style={{ color: "#fff", fontWeight: "bold", textAlign: "center" }}
           >
-            Liveness
+            Match
           </Text>
         </TouchableOpacity>
 
@@ -290,24 +332,7 @@ const FaceLiveness = ({ navigation }) => {
         <Text>Liveness: {liveness}</Text>
       </View>
 
-      <View>
-        <TouchableOpacity
-          style={{
-            backgroundColor: "#4285F4",
-            padding: 10,
-            borderRadius: 5,
-            alignItems: "center",
-            width: 140,
-          }}
-          onPress={checkAudio}
-        >
-          <Text
-            style={{ color: "#fff", fontWeight: "bold", textAlign: "center" }}
-          >
-            Audio Check
-          </Text>
-        </TouchableOpacity>
-      </View>
+      <View></View>
     </SafeAreaView>
   );
 };

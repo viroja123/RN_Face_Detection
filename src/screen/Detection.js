@@ -29,9 +29,9 @@ import Animated, {
   runOnJS,
 } from "react-native-reanimated";
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
-import CustomModal from "../../components/CustomModals";
-import AudioCameraControls from "../../components/AudioVideoCameraControl";
-import { SAMPLE_SENTENCES } from "../../utils/constants";
+import CustomModal from "../components/CustomModals";
+import AudioCameraControls from "../components/AudioVideoCameraControl";
+import { SAMPLE_SENTENCES } from "../utils/constants";
 import levenshtein from "fast-levenshtein";
 
 function Detection({ navigation }) {

@@ -17,10 +17,10 @@ const CustomModal = ({ visible, photoPath, onVerify, onClose }) => {
           )}
           <View style={styles.buttonContainer}>
             <Pressable onPress={onVerify} style={styles.button}>
-              <Text style={styles.buttonText}>Verify</Text>
+              <Text style={styles.buttonText}>Save</Text>
             </Pressable>
             <Pressable onPress={onClose} style={styles.button}>
-              <Text style={styles.buttonText}>Close</Text>
+              <Text style={styles.buttonText}>Re-capture</Text>
             </Pressable>
           </View>
         </View>
