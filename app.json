@@ -24,22 +24,31 @@
             "minSdkVersion": 26,
             "compileSdkVersion": 34,
             "targetSdkVersion": 34,
-            "buildToolsVersion": "34.0.0"
+            "buildToolsVersion": "34.0.0",
+            "newArchEnabled": true
           },
           "ios": {
             "deploymentTarget": "15.1",
+            "newArchEnabled": true,
             "useFrameworks": "static"
           }
         }
       ],
       [
-        "expo-speech-recognition",
+        "./app.plugin",
         {
           "microphonePermission": "Allow myFaceDetection to use the microphone.",
           "speechRecognitionPermission": "Allow myFaceDetection to use speech recognition.",
           "androidSpeechServicePackages": [
-            "com.google.android.googlequicksearchbox"
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.tts"
           ]
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow myFaceDetection to access your microphone."
         }
       ]
     ]

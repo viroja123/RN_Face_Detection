@@ -19,7 +19,8 @@ const SAMPLE_SENTENCES = [
   "Do not count your chickens before they are hatched.",
 ];
 
-const AudioTest = ({ onMatchSuccess }) => {
+const AudioTest = ({ onMatchSuccess, isFaceDetected }) => {
+  console.log("isFaceDetected1111", isFaceDetected);
   const [transcript, setTranscript] = useState("");
   const [currentSentence, setCurrentSentence] = useState("");
   const [matchPercentage, setMatchPercentage] = useState(0);
@@ -54,6 +55,7 @@ const AudioTest = ({ onMatchSuccess }) => {
         setRecognizing(false);
       } catch (error) {
         console.error("Error stopping speech recognition:", error);
+        onMatchSuccess?.(false);
       }
     }
   }, [recognizing]);
@@ -75,18 +77,10 @@ const AudioTest = ({ onMatchSuccess }) => {
     setMatchPercentage(roundedSimilarity);
     setIsMatched(roundedSimilarity >= MATCH_THRESHOLD);
 
-    console.log("Speech match percentage:", roundedSimilarity);
-
     // Notify parent when match percentage is 75% or above
     if (roundedSimilarity >= MATCH_THRESHOLD) {
-      console.log(
-        "call the the match percentage-------------------",
-        roundedSimilarity
-      );
       onMatchSuccess?.(true);
-    }
-     else {
-      console.log("no match 000000000000000000");
+    } else {
       onMatchSuccess?.(false);
     }
   });
@@ -100,6 +94,19 @@ const AudioTest = ({ onMatchSuccess }) => {
     try {
       const permission =
         await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      const microphonePermissions =
+        await ExpoSpeechRecognitionModule.requestMicrophonePermissionsAsync();
+      console.log("Microphone permissions", microphonePermissions);
+      if (!microphonePermissions.granted) {
+        console.log("microphonePermissions", microphonePermissions);
+        return;
+      }
+
+      ExpoSpeechRecognitionModule.requestSpeechRecognizerPermissionsAsync().then(
+        (result) => {
+          console.log("result", JSON.stringify(result));
+        }
+      );
       if (!permission.granted) {
         Alert.alert(
           "Permissions Required",
@@ -107,14 +114,23 @@ const AudioTest = ({ onMatchSuccess }) => {
         );
         return;
       }
-      await stopSpeechRecognition();
+      // await stopSpeechRecognition();
       ExpoSpeechRecognitionModule.start({
-        lang: "en-US",
         interimResults: true,
-        maxAlternatives: 1,
-        continuous: false,
+        maxAlternatives: 3,
+        continuous: true,
         requiresOnDeviceRecognition: false,
-        addsPunctuation: false,
+        addsPunctuation: true,
+        contextualStrings: [
+          "expo-speech-recognition",
+          "Carlsen",
+          "Ian Nepomniachtchi",
+          "Praggnanandhaa",
+        ],
+        volumeChangeEventOptions: {
+          enabled: false,
+          intervalMillis: 300,
+        },
       });
     } catch (error) {
       console.error("Speech Recognition Error:", error);
@@ -122,11 +138,13 @@ const AudioTest = ({ onMatchSuccess }) => {
         "Error",
         error.message || "Could not start speech recognition."
       );
+      onMatchSuccess?.(false);
       setRecognizing(false);
     }
   };
 
   const getRandomSentence = useCallback(() => {
+    onMatchSuccess?.(false);
     const randomIndex = Math.floor(Math.random() * SAMPLE_SENTENCES.length);
     setCurrentSentence(SAMPLE_SENTENCES[randomIndex]);
     setTranscript("");
@@ -149,7 +167,7 @@ const AudioTest = ({ onMatchSuccess }) => {
         <TouchableOpacity
           style={[styles.recordBtn, recognizing ? styles.recordingBtn : null]}
           onPress={recognizing ? stopSpeechRecognition : startAudioRecording}
-          disabled={!hasPermission}
+          disabled={!hasPermission || !isFaceDetected}
         >
           <Text style={styles.btnText}>
             {recognizing ? "Stop Recording" : "Start Recording"}
@@ -176,8 +194,8 @@ const AudioTest = ({ onMatchSuccess }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   sentenceTitle: {
-    fontSize: 15,
-    fontWeight: "500",
+    fontSize: 14,
+    fontWeight: "400",
     color: "#555",
   },
   sentenceTxt: {
@@ -186,6 +204,9 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderLeftWidth: 4,
     borderLeftColor: "#3498db",
+    backgroundColor: "#555",
+    color: "white",
+    fontWeight: "500",
   },
   newSentenceBtn: {
     alignSelf: "flex-end",

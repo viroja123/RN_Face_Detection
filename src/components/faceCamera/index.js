@@ -1,4 +1,10 @@
-import React, { useCallback, useReducer, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import {
   View,
   Text,
@@ -6,13 +12,17 @@ import {
   useWindowDimensions,
   Alert,
   TouchableOpacity,
+  Image,
 } from "react-native";
 import { AnimatedCircularProgress } from "react-native-circular-progress";
 import { Camera } from "react-native-vision-camera-face-detector";
-import { useCameraDevice, useFrameProcessor } from "react-native-vision-camera";
 import RNFS from "react-native-fs";
 import CustomModal from "../CustomModals";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  useCameraDevice,
+  Camera as VisionCamera,
+} from "react-native-vision-camera";
 
 const PREVIEW_MARGIN_TOP = 100;
 const PREVIEW_SIZE = 200;
@@ -41,7 +51,11 @@ const detectionReducer = (state, action) => {
   }
 };
 
-const FaceCameraDetector = ({ handleFaceData, currentStep }) => {
+const FaceCameraDetector = ({
+  handleFaceData,
+  currentStep,
+  onFaceDetectionChange,
+}) => {
   const [photoPath, setPhotoPath] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [imageBase, setImageBase] = useState("");
@@ -49,6 +63,23 @@ const FaceCameraDetector = ({ handleFaceData, currentStep }) => {
   const camera = useRef(null);
   const cameraDevice = useCameraDevice("front");
   const [state, dispatch] = useReducer(detectionReducer, initialState);
+  const [success, setSuccess] = useState(false);
+  const [hasPermission, setHasPermission] = useState(false);
+
+  // Function to request camera permission
+  const requestCameraPermission = async () => {
+    const permission = await VisionCamera.requestCameraPermission();
+    if (permission === "granted") {
+      setHasPermission(true);
+    } else {
+      Alert.alert("Camera permission is required to proceed.");
+    }
+  };
+
+  // Request permission when component mounts
+  useEffect(() => {
+    requestCameraPermission();
+  }, []);
 
   const captureImage = useCallback(async () => {
     if (!camera.current) {
@@ -57,6 +88,7 @@ const FaceCameraDetector = ({ handleFaceData, currentStep }) => {
     }
 
     try {
+      setSuccess(false);
       console.log("Attempting to capture image...");
 
       // Take photo with base64 encoding enabled
@@ -68,13 +100,11 @@ const FaceCameraDetector = ({ handleFaceData, currentStep }) => {
         includeBase64: true, // Make sure base64 is enabled
       });
 
-      console.log("Photo captured:", photo, photo ? "success" : "failed");
+      console.log("Photo captured:", photo ? "success" : "failed");
       const base64 = await RNFS.readFile(photo?.path, "base64");
-      console.log(base64, "-------->>>>base64");
       if (photo && photo?.path) {
         setPhotoPath("file://" + photo.path);
         setImageBase(base64);
-        console.log("base64", JSON.stringify(base64), "----->");
         setShowModal(true);
       }
       // Verify we have the base64 data
@@ -86,11 +116,11 @@ const FaceCameraDetector = ({ handleFaceData, currentStep }) => {
       // Save image data in state via dispatch
       dispatch({
         type: "IMAGE_CAPTURED",
-        imageData: base64,
+        imageData: photo.path,
       });
 
       console.log("Image successfully captured and stored in state");
-      return base64;
+      return photo.path;
     } catch (error) {
       console.error("Error capturing image:", error);
       Alert.alert("Error", "Failed to capture image: " + error.message);
@@ -105,26 +135,29 @@ const FaceCameraDetector = ({ handleFaceData, currentStep }) => {
           if (!state.faceDetected) {
             dispatch({ type: "FACE_DETECTED", value: "yes" });
             console.log("Face detected!");
+            onFaceDetectionChange(true);
           }
         } else {
           if (state.faceDetected) {
             dispatch({ type: "FACE_DETECTED", value: "no" });
             console.log("No face detected");
+            onFaceDetectionChange(false);
           }
         }
       } catch (error) {
         console.error("Error in face detection:", error);
         if (state.faceDetected) {
           dispatch({ type: "FACE_DETECTED", value: "no" });
+          onFaceDetectionChange(false);
         }
       }
     },
-    [state.faceDetected]
+    [state.faceDetected, onFaceDetectionChange]
   );
-  const frameProcessor = useFrameProcessor((frame) => {
-    "worklet";
-    console.log(`Frame: ${frame.width}x${frame.height} (${frame.pixelFormat})`);
-  }, []);
+  // const frameProcessor = useFrameProcessor((frame) => {
+  //   "worklet";
+  //   console.log(`Frame: ${frame.width}x${frame.height} (${frame.pixelFormat})`);
+  // }, []);
 
   const handleFaceVerification = async () => {
     if (!photoPath || !imageBase) {
@@ -132,13 +165,15 @@ const FaceCameraDetector = ({ handleFaceData, currentStep }) => {
       return;
     }
 
-    handleFaceData(photoPath, imageBase);
     try {
-      //   await AsyncStorage.setItem("photoPath", photoPath);
-      await AsyncStorage.setItem("imageBase", imageBase);
-      Alert.alert("Image saved successfully!");
+      handleFaceData(photoPath, imageBase);
+      setSuccess(true);
+      // await AsyncStorage.setItem("photoPath", photoPath);
+      // await AsyncStorage.setItem("imageBase", imageBase);
+      // Alert.alert("Image saved successfully!");
       setShowModal(false);
     } catch (error) {
+      setSuccess(false);
       console.error("Error saving image:", error);
       Alert.alert("An error occurred while saving the image.");
     }
@@ -179,12 +214,23 @@ const FaceCameraDetector = ({ handleFaceData, currentStep }) => {
         }
       </AnimatedCircularProgress>
       {currentStep === 1 && (
-        <View style={{ alignSelf: "center" }}>
+        <View
+          style={{
+            alignSelf: "center",
+            flexDirection: "row",
+            alignItems: "center",
+          }}
+        >
           <TouchableOpacity
             style={[
               styles.button,
-              { backgroundColor: "pink", width: 150, marginVertical: 6 },
+              {
+                backgroundColor: state.faceDetected ? "pink" : "grey",
+                width: 200,
+                marginVertical: 6,
+              },
             ]}
+            disabled={!state.faceDetected}
             onPress={captureImage}
           >
             <Text
@@ -193,9 +239,15 @@ const FaceCameraDetector = ({ handleFaceData, currentStep }) => {
                 { textAlign: "center", color: "black" },
               ]}
             >
-              Capture Image
+              {state.faceDetected ? " Capture Image" : "No Face Capture"}
             </Text>
           </TouchableOpacity>
+          {success && (
+            <Image
+              source={require("../../images/correct.png")}
+              style={{ width: 40, height: 40, marginLeft: 10 }}
+            />
+          )}
         </View>
       )}
       <CustomModal

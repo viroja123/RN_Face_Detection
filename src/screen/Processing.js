@@ -43,6 +43,7 @@ const steps = [
 const Progressing = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isNextDisabled, setIsNextDisabled] = useState(false);
+  const [faceDetected, setFaceDetected] = useState(false);
   const { hasPermission, requestPermission } = useCameraPermission();
   const [liveness, setLiveness] = useState("nil");
   const [img1, setImg1] = useState("");
@@ -67,6 +68,8 @@ const Progressing = () => {
     // Enable Next button when liveness is "passed"
     if (liveness === "passed" && currentStep === 3) {
       setIsNextDisabled(false);
+    } else if (liveness === "nil" && currentStep === 3) {
+      setIsNextDisabled(true);
     }
   }, [liveness, currentStep]);
 
@@ -128,6 +131,11 @@ const Progressing = () => {
     labelColor: "#666",
     currentStepLabelColor: "#4BB543",
     labelSize: 14,
+    labelAlign: "flex-start", 
+    labelStyle: {
+      textAlign: "left", 
+      width: 100,
+    },
   });
 
   const handleReset = async () => {
@@ -137,6 +145,9 @@ const Progressing = () => {
     await AsyncStorage.removeItem("imageBase64");
     await AsyncStorage.removeItem("photoPath");
     console.log("AsyncStorage cleared.");
+
+    setLiveness("nil");
+    setSimilarity("nil");
   };
 
   //2nd Face Detection
@@ -145,8 +156,7 @@ const Progressing = () => {
       try {
         await AsyncStorage.setItem("photoPath", imagePath);
         await AsyncStorage.setItem("imageBase64", base64Image);
-        Alert.alert("Image saved successfully!");
-        console.log("Face Data", imagePath, base64Image, "Saved");
+        console.log("Face Data", imagePath, "Saved");
 
         setIsNextDisabled(false); // Enable Next button after storing data
       } catch (error) {
@@ -164,6 +174,21 @@ const Progressing = () => {
       const photoPath = await AsyncStorage.getItem("photoPath");
       const imageBase64 = await AsyncStorage.getItem("imageBase64");
       setIsNextDisabled(!photoPath || !imageBase64); // Disable if missing
+      if (photoPath && imageBase64) {
+        console.log("Loading stored image data for comparison");
+
+        // Set up image2 for display
+        setImg2({ uri: photoPath });
+
+        // Set up image2Ref for the face comparison
+        image2Ref.current = new MatchFacesImage();
+        image2Ref.current.image = imageBase64;
+        image2Ref.current.imageType = Enum.ImageType.PRINTED;
+
+        console.log("Stored image loaded - base64 length:", imageBase64.length);
+      } else {
+        setIsNextDisabled(true);
+      }
     } catch (error) {
       console.error("Error fetching image data:", error);
       setIsNextDisabled(true);
@@ -186,6 +211,7 @@ const Progressing = () => {
   const setImage = (first, base64, type) => {
     if (!base64) return;
     setSimilarity("null");
+    console.log("base64.length", base64.length);
 
     if (first) {
       image1Ref.current = new MatchFacesImage();
@@ -197,14 +223,13 @@ const Progressing = () => {
       console.log("Image1Ref Base64:", image1Ref.current.image.length);
     }
 
-    AsyncStorage.getItem("imageBase64")
+    AsyncStorage.getItem("photoPath")
       .then((d) => {
-        console.log("d", d);
         console.log("Stored Image Base64 Length:", d ? d.length : "No data");
         if (d) {
           image2Ref.current = new MatchFacesImage();
           image2Ref.current.image = d;
-          setImg2({ uri: `data:image/png;base64,${d}` });
+          setImg2({ uri: `${d}` });
 
           console.log("Image2Ref Base64:", image2Ref.current.image.length);
         }
@@ -216,14 +241,12 @@ const Progressing = () => {
   };
 
   const startLiveness = () => {
-    console.log("call the liveness");
     FaceSDK.startLiveness(
       { skipStep: [LivenessSkipStep.ONBOARDING_STEP] },
       (json) => {
         const response = LivenessResponse.fromJson(JSON.parse(json));
         if (response.image) {
           setImage(true, response.image, Enum.ImageType.LIVE);
-          console.log("call the liveness");
           const livenessStatus =
             response.liveness === Enum.LivenessStatus.PASSED
               ? "passed"
@@ -244,12 +267,20 @@ const Progressing = () => {
 
   //5 Match Image Return boolean Data
   const handleHighSimilarity = (similarityValue) => {
+    console.log("similarityValue=================>", similarityValue);
+
     if (similarityValue > 75) {
       setIsNextDisabled(false);
+      handleNextStep();
       console.log(`High similarity detected: ${similarityValue}%`);
-    } else {
+    } else if (similarityValue === 0) {
       setIsNextDisabled(true);
     }
+  };
+
+  const handleFaceDetectionChange = (detected) => {
+    console.log("Face detected:", detected);
+    setFaceDetected(detected);
   };
 
   return (
@@ -259,27 +290,46 @@ const Progressing = () => {
           <FaceCameraDetector
             handleFaceData={handleFaceData}
             currentStep={currentStep}
+            onFaceDetectionChange={handleFaceDetectionChange}
           />
         )}
         {currentStep === 2 && (
           <FaceCameraDetector
             handleFaceData={handleFaceData}
             currentStep={currentStep}
+            onFaceDetectionChange={handleFaceDetectionChange}
           />
         )}
 
         {currentStep === 2 && (
           <AudioTest
             onMatchSuccess={(isMatched) => {
-              setIsNextDisabled(!isMatched); // This will set to false when isMatched is true
+              console.log("call the ");
+              setIsNextDisabled(!isMatched);
               console.log("isMatched", isMatched);
             }}
+            isFaceDetected={faceDetected}
           />
         )}
       </View>
 
       {currentStep === 3 && (
         <View>
+          <Text
+            style={{
+              backgroundColor: "#FFB6D9",
+              padding: 10,
+              alignSelf: "center",
+              borderRadius: 10,
+              marginBottom: 8,
+              fontWeight: "500",
+            }}
+          >
+            <Text style={{ fontSize: 15, fontWeight: "600" }}>
+              Instruction :
+            </Text>
+            {`\n  * Ensure your face is well-lit, as face recognition will not work in low light or shadows. \n  * Follow the on-screen prompts (e.g., smile or turn your head) with smooth and natural movements.`}
+          </Text>
           <TouchableOpacity style={styles.button} onPress={startLiveness}>
             <Text style={styles.buttonText}>Start Liveness</Text>
           </TouchableOpacity>
@@ -297,7 +347,7 @@ const Progressing = () => {
           image1={img1}
           image2={img2}
           image1Ref={image1Ref}
-          image2Ref={image1Ref}
+          image2Ref={image2Ref}
           onHighSimilarity={handleHighSimilarity}
         />
       )}
@@ -314,7 +364,7 @@ const Progressing = () => {
           }}
         />
       )}
-      {currentStep !== 2 && (
+      {currentStep !== 2 && currentStep !== 3 && (
         <View
           style={{
             backgroundColor: "#FFB6D9",
@@ -330,8 +380,8 @@ const Progressing = () => {
             {currentStep === 1 &&
               "Stay still and face the camera directly. Ensure your entire face is visible without obstructions."}
 
-            {currentStep === 3 &&
-              "Follow the instructions ( smile, or turn your head). Ensure smooth movements and real."}
+            {/* {currentStep === 3 &&
+              "Follow the on-screen prompts (e.g., smile or turn your head) with smooth and natural movements."} */}
             {currentStep === 4 &&
               "Comparing your live image with the registered image for verification. Please wait."}
             {currentStep === 5 &&
@@ -340,7 +390,7 @@ const Progressing = () => {
         </View>
       )}
 
-      <View style={{ height: 230 }}>
+      <View style={{ height: 215 }}>
         <StepIndicator
           customStyles={getStepIndicatorStyles()}
           currentPosition={currentStep}
@@ -387,7 +437,7 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     flexDirection: "row",
-    marginTop: 2,
+    // marginTop: 1,
     gap: 10,
     alignSelf: "center",
   },
