@@ -14,6 +14,7 @@ import FaceCameraDetector from "../components/faceCamera";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCameraPermission } from "react-native-vision-camera";
 import AudioTest from "../components/audioTest";
+import ToastManager, { Toast } from "toastify-react-native";
 import FaceSDK, {
   Enum,
   FaceCaptureResponse,
@@ -30,10 +31,12 @@ import FaceSDK, {
 } from "@regulaforensics/react-native-face-api";
 import MatchImage from "../components/MatchImages";
 import * as RNFS from "react-native-fs";
+import invokeGenderDetector from "../hook/UseFaceGender";
+import { uploadImageToStorage } from "../utils/method";
 
 const steps = [
   "Start",
-  "Face Detection",
+  "Face Detection & Gender Detection",
   "Audio Test",
   "Liveness",
   "Matching Image",
@@ -131,9 +134,9 @@ const Progressing = () => {
     labelColor: "#666",
     currentStepLabelColor: "#4BB543",
     labelSize: 14,
-    labelAlign: "flex-start", 
+    labelAlign: "flex-start",
     labelStyle: {
-      textAlign: "left", 
+      textAlign: "left",
       width: 100,
     },
   });
@@ -144,6 +147,8 @@ const Progressing = () => {
     await AsyncStorage.clear();
     await AsyncStorage.removeItem("imageBase64");
     await AsyncStorage.removeItem("photoPath");
+    await AsyncStorage.removeItem("Image1GenderLabelName");
+    await AsyncStorage.removeItem("Image2GenderLabelName");
     console.log("AsyncStorage cleared.");
 
     setLiveness("nil");
@@ -151,18 +156,21 @@ const Progressing = () => {
   };
 
   //2nd Face Detection
-  const handleFaceData = async (imagePath, base64Image) => {
-    if (imagePath && base64Image) {
+  const handleFaceData = async (imagePath, base64Image, labelName) => {
+    if (imagePath && base64Image && labelName) {
+      // console.log("labelName-------------------", labelName);
       try {
         await AsyncStorage.setItem("photoPath", imagePath);
         await AsyncStorage.setItem("imageBase64", base64Image);
-        console.log("Face Data", imagePath, "Saved");
-
+        await AsyncStorage.setItem("Image1GenderLabelName", labelName);
+        // console.log("Face Data", imagePath, "Saved");
+        Toast.success(`Image Successfully Store`, "bottom", labelName);
         setIsNextDisabled(false); // Enable Next button after storing data
       } catch (error) {
         await AsyncStorage.clear();
         await AsyncStorage.removeItem("imageBase64");
         await AsyncStorage.removeItem("photoPath");
+        await AsyncStorage.removeItem("Image1GenderLabelName");
 
         console.error("Error saving image data:", error);
       }
@@ -211,7 +219,7 @@ const Progressing = () => {
   const setImage = (first, base64, type) => {
     if (!base64) return;
     setSimilarity("null");
-    console.log("base64.length", base64.length);
+    // console.log("base64.length", base64.length);
 
     if (first) {
       image1Ref.current = new MatchFacesImage();
@@ -243,8 +251,9 @@ const Progressing = () => {
   const startLiveness = () => {
     FaceSDK.startLiveness(
       { skipStep: [LivenessSkipStep.ONBOARDING_STEP] },
-      (json) => {
+      async (json) => {
         const response = LivenessResponse.fromJson(JSON.parse(json));
+        // console.log("response", JSON.stringify(response));
         if (response.image) {
           setImage(true, response.image, Enum.ImageType.LIVE);
           const livenessStatus =
@@ -256,6 +265,18 @@ const Progressing = () => {
           // Enable Next button only if liveness check passed
           if (livenessStatus === "passed") {
             setIsNextDisabled(false);
+            const url = await uploadImageToStorage(response?.image, true);
+            console.log("Uploaded!", url);
+
+            const genderData = await invokeGenderDetector(url.publicUrl);
+            // console.log("<----------genderData--------->", genderData);
+            if (genderData) {
+              AsyncStorage.setItem(
+                "Image2GenderLabelName",
+                genderData?.labelName
+              );
+            }
+            Toast.success(`Liveness Successfully check `, "bottom");
           } else {
             setIsNextDisabled(true);
           }
@@ -272,6 +293,7 @@ const Progressing = () => {
     if (similarityValue > 75) {
       setIsNextDisabled(false);
       handleNextStep();
+      Toast.success(`Image Match Successfully`, "bottom");
       console.log(`High similarity detected: ${similarityValue}%`);
     } else if (similarityValue === 0) {
       setIsNextDisabled(true);
@@ -304,7 +326,7 @@ const Progressing = () => {
         {currentStep === 2 && (
           <AudioTest
             onMatchSuccess={(isMatched) => {
-              console.log("call the ");
+              // console.log("call the ");
               setIsNextDisabled(!isMatched);
               console.log("isMatched", isMatched);
             }}
@@ -349,22 +371,53 @@ const Progressing = () => {
           image1Ref={image1Ref}
           image2Ref={image2Ref}
           onHighSimilarity={handleHighSimilarity}
+          currentStep={currentStep}
         />
       )}
 
       {currentStep === 5 && (
-        <Image
-          source={require("../images/correct.png")}
-          resizeMode="contain"
-          style={{
-            width: 200,
-            height: 200,
-            alignSelf: "center",
-            marginBottom: 80,
-          }}
-        />
+        <View>
+          <Image
+            source={require("../images/correct.png")}
+            resizeMode="contain"
+            style={{
+              width: 200,
+              height: 200,
+              alignSelf: "center",
+              marginBottom: 30,
+            }}
+          />
+          {/* <View
+            style={{
+              marginTop: 10,
+              backgroundColor: "green",
+              borderRadius: 10,
+            }}
+          >
+            <Text
+              style={{ textAlign: "center", fontSize: 18, fontWeight: "bold" }}
+            >
+              Result :
+            </Text>
+          </View> */}
+          {/* <Text style={{ paddingVertical: 5 }}>Face Detection & Gender :</Text>
+          <Text>Audio Detection : </Text>
+          <Text style={{ paddingVertical: 5 }}>Liveness : </Text>
+          <Text>Face Matching : </Text> */}
+
+          <Text
+            style={{
+              textAlign: "center",
+              fontSize: 20,
+              fontWeight: "bold",
+              padding: 18,
+            }}
+          >
+            Verification successful! You have completed the process.
+          </Text>
+        </View>
       )}
-      {currentStep !== 2 && currentStep !== 3 && (
+      {currentStep !== 2 && currentStep !== 3 && currentStep !== 5 && (
         <View
           style={{
             backgroundColor: "#FFB6D9",
@@ -384,8 +437,6 @@ const Progressing = () => {
               "Follow the on-screen prompts (e.g., smile or turn your head) with smooth and natural movements."} */}
             {currentStep === 4 &&
               "Comparing your live image with the registered image for verification. Please wait."}
-            {currentStep === 5 &&
-              "Verification successful! You have completed the process."}
           </Text>
         </View>
       )}
@@ -425,6 +476,11 @@ const Progressing = () => {
           </TouchableOpacity>
         )}
       </View>
+      <ToastManager
+        width={"100%"}
+        textStyle={{ fontSize: 13 }}
+        height={"auto"}
+      />
     </View>
   );
 };

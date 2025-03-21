@@ -18,11 +18,13 @@ import { AnimatedCircularProgress } from "react-native-circular-progress";
 import { Camera } from "react-native-vision-camera-face-detector";
 import RNFS from "react-native-fs";
 import CustomModal from "../CustomModals";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   useCameraDevice,
   Camera as VisionCamera,
 } from "react-native-vision-camera";
+import invokeGenderDetector from "../../hook/UseFaceGender";
+import { supabase } from "../../config/initSupabase";
+import { uploadImageToStorage } from "../../utils/method";
 
 const PREVIEW_MARGIN_TOP = 100;
 const PREVIEW_SIZE = 200;
@@ -59,12 +61,14 @@ const FaceCameraDetector = ({
   const [photoPath, setPhotoPath] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [imageBase, setImageBase] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { width, height } = useWindowDimensions();
   const camera = useRef(null);
   const cameraDevice = useCameraDevice("front");
   const [state, dispatch] = useReducer(detectionReducer, initialState);
   const [success, setSuccess] = useState(false);
   const [hasPermission, setHasPermission] = useState(false);
+  const [faceGenderData, setFaceGenderData] = useState(null);
 
   // Function to request camera permission
   const requestCameraPermission = async () => {
@@ -86,7 +90,6 @@ const FaceCameraDetector = ({
       console.error("Camera reference is not available");
       return null;
     }
-
     try {
       setSuccess(false);
       console.log("Attempting to capture image...");
@@ -97,12 +100,13 @@ const FaceCameraDetector = ({
         flash: "off",
         enableAutoStabilization: true,
         skipMetadata: true,
-        includeBase64: true, // Make sure base64 is enabled
+        includeBase64: true,
       });
 
       console.log("Photo captured:", photo ? "success" : "failed");
       const base64 = await RNFS.readFile(photo?.path, "base64");
       if (photo && photo?.path) {
+        // console.log("photo", photo);
         setPhotoPath("file://" + photo.path);
         setImageBase(base64);
         setShowModal(true);
@@ -120,6 +124,7 @@ const FaceCameraDetector = ({
       });
 
       console.log("Image successfully captured and stored in state");
+
       return photo.path;
     } catch (error) {
       console.error("Error capturing image:", error);
@@ -154,30 +159,67 @@ const FaceCameraDetector = ({
     },
     [state.faceDetected, onFaceDetectionChange]
   );
-  // const frameProcessor = useFrameProcessor((frame) => {
-  //   "worklet";
-  //   console.log(`Frame: ${frame.width}x${frame.height} (${frame.pixelFormat})`);
-  // }, []);
+
+  // const uploadImageToStorage = async (path) => {
+  //   try {
+  //     const imageName = path.split("/").pop();
+  //     console.log("Uploading:", imageName);
+  //     const fileData = await RNFS.readFile(path, "base64");
+
+  //     console.log("fileData,", fileData, "fileData--->");
+  //     const { data: data11, error } = await supabase.storage
+  //       .from("image")
+  //       .upload(imageName, decode(fileData), {
+  //         contentType: "image/png",
+  //       });
+  //     console.log("data---------->", data11);
+  //     if (error) {
+  //       console.error("Upload error:", error);
+  //       return null;
+  //     }
+
+  //     const { data } = await supabase.storage
+  //       .from("image")
+  //       .getPublicUrl(imageName);
+
+  //     console.log("Image URL:", data.publicUrl);
+  //     return data;
+  //   } catch (error) {
+  //     console.error("error", error);
+  //   }
+  // };
 
   const handleFaceVerification = async () => {
     if (!photoPath || !imageBase) {
       Alert.alert("Please capture an image first");
       return;
     }
-
+    setIsLoading(true);
     try {
-      handleFaceData(photoPath, imageBase);
+      // console.log("open---->");
+
+      const url = await uploadImageToStorage(photoPath, false);
+      console.log("Uploaded!", url);
+
+      const genderData = await invokeGenderDetector(url.publicUrl);
+      if (genderData) {
+        // console.log("genderData--->", genderData);
+        setFaceGenderData(genderData);
+      }
+      // console.log("genderData", genderData?.labelName);
+      // console.log("close---->");
+      handleFaceData(photoPath, imageBase, genderData?.labelName);
       setSuccess(true);
-      // await AsyncStorage.setItem("photoPath", photoPath);
-      // await AsyncStorage.setItem("imageBase", imageBase);
-      // Alert.alert("Image saved successfully!");
+      setIsLoading(false);
       setShowModal(false);
     } catch (error) {
+      setIsLoading(false);
       setSuccess(false);
       console.error("Error saving image:", error);
       Alert.alert("An error occurred while saving the image.");
     }
   };
+  const confidence = faceGenderData?.confidence * 100;
 
   return (
     <View style={styles.container}>
@@ -250,11 +292,31 @@ const FaceCameraDetector = ({
           )}
         </View>
       )}
+      {success && (
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+          }}
+        >
+          <Text style={{ textAlign: "left" }}>
+            Gender :{" "}
+            <Text style={{ fontWeight: "bold" }}>
+              {faceGenderData?.labelName || "Unknown"}
+            </Text>
+          </Text>
+          <Text style={{ textAlign: "right" }}>
+            Probability :{" "}
+            <Text style={{ fontWeight: "bold" }}>{confidence.toFixed()}</Text>
+          </Text>
+        </View>
+      )}
       <CustomModal
         visible={showModal}
         photoPath={photoPath}
         onVerify={handleFaceVerification}
         onClose={() => setShowModal(false)}
+        isLoading={isLoading}
       />
     </View>
   );

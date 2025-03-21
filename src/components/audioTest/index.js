@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, Alert, StyleSheet } from "react-native";
 import React, { useCallback, useEffect, useState } from "react";
+import { Toast } from "toastify-react-native";
 import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
@@ -90,15 +91,22 @@ const AudioTest = ({ onMatchSuccess, isFaceDetected }) => {
   });
 
   const startAudioRecording = async () => {
-    if (recognizing) return;
     try {
+      if (recognizing) return;
       const permission =
         await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      console.log("permission", permission);
+      if (!permission.granted) {
+        Toast.error(`Permissions not granted`, "bottom");
+      }
       const microphonePermissions =
         await ExpoSpeechRecognitionModule.requestMicrophonePermissionsAsync();
       console.log("Microphone permissions", microphonePermissions);
       if (!microphonePermissions.granted) {
-        console.log("microphonePermissions", microphonePermissions);
+        Toast.error(
+          `Permissions not granted11 ${JSON.stringify(microphonePermissions)}`,
+          "bottom"
+        );
         return;
       }
 
@@ -107,14 +115,7 @@ const AudioTest = ({ onMatchSuccess, isFaceDetected }) => {
           console.log("result", JSON.stringify(result));
         }
       );
-      if (!permission.granted) {
-        Alert.alert(
-          "Permissions Required",
-          "Speech recognition permissions are necessary."
-        );
-        return;
-      }
-      // await stopSpeechRecognition();
+
       ExpoSpeechRecognitionModule.start({
         interimResults: true,
         maxAlternatives: 3,
@@ -127,17 +128,16 @@ const AudioTest = ({ onMatchSuccess, isFaceDetected }) => {
           "Ian Nepomniachtchi",
           "Praggnanandhaa",
         ],
-        volumeChangeEventOptions: {
-          enabled: false,
-          intervalMillis: 300,
-        },
+        volumeChangeEventOptions: { enabled: false, intervalMillis: 300 },
       });
+      setRecognizing(false); // Reset recognizing on failure
     } catch (error) {
       console.error("Speech Recognition Error:", error);
-      Alert.alert(
-        "Error",
-        error.message || "Could not start speech recognition."
+      Toast.error(
+        error.message || "Could not start speech recognition.",
+        "bottom"
       );
+
       onMatchSuccess?.(false);
       setRecognizing(false);
     }
@@ -167,7 +167,7 @@ const AudioTest = ({ onMatchSuccess, isFaceDetected }) => {
         <TouchableOpacity
           style={[styles.recordBtn, recognizing ? styles.recordingBtn : null]}
           onPress={recognizing ? stopSpeechRecognition : startAudioRecording}
-          disabled={!hasPermission || !isFaceDetected}
+          disabled={!isFaceDetected}
         >
           <Text style={styles.btnText}>
             {recognizing ? "Stop Recording" : "Start Recording"}

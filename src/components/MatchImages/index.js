@@ -8,6 +8,7 @@ import FaceSDK, {
   Enum,
 } from "@regulaforensics/react-native-face-api";
 import RNFS from "react-native-fs";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const MatchImage = ({
   image1,
@@ -15,9 +16,12 @@ const MatchImage = ({
   image1Ref,
   image2Ref,
   onHighSimilarity,
+  currentStep,
 }) => {
   const [similarity, setSimilarity] = useState("nil");
   const [similarityValue, setSimilarityValue] = useState(0);
+  const [image1Gender, setImage1Gender] = useState(null);
+  const [image2Gender, setImage2Gender] = useState(null);
 
   // Use useEffect to call the parent function when similarity changes
   useEffect(() => {
@@ -29,6 +33,26 @@ const MatchImage = ({
       onHighSimilarity && onHighSimilarity(0);
     }
   }, [similarityValue, onHighSimilarity, similarity]);
+
+  useEffect(() => {
+    const fetchImageGender = async () => {
+      setTimeout(async () => {
+        if (currentStep === 4) {
+          const image1Data = await AsyncStorage.getItem(
+            "Image1GenderLabelName"
+          );
+          const image2Data = await AsyncStorage.getItem(
+            "Image2GenderLabelName"
+          );
+          if (image1Data && image2Data) {
+            setImage1Gender(image1Data);
+            setImage2Gender(image2Data);
+          }
+        }
+      }, 1500);
+    };
+    fetchImageGender();
+  }, [currentStep]);
 
   const startMatchImages = async () => {
     try {
@@ -161,11 +185,17 @@ const MatchImage = ({
       <View style={{ flexDirection: "row", alignSelf: "center" }}>
         {image1 ? (
           <View style={{ borderRadius: 20 }}>
+            <Text style={{ textAlign: "center", fontWeight: "bold" }}>
+              Liveness:
+            </Text>
             <Image
               source={image1.uri ? { uri: image1.uri } : image1}
               resizeMode="contain"
               style={{ height: 150, width: 150, borderRadius: 10 }}
             />
+            <Text style={{ textAlign: "center", fontWeight: "bold" }}>
+              Gender : {image1Gender}
+            </Text>
           </View>
         ) : (
           <View
@@ -183,11 +213,21 @@ const MatchImage = ({
 
         {image2 ? (
           <View style={{ borderRadius: 20 }}>
+            <Text style={{ textAlign: "center", fontWeight: "bold" }}>
+              Face :
+            </Text>
             <Image
               source={image2.uri ? { uri: image2.uri } : image2}
               resizeMode="contain"
-              style={{ height: 150, width: 150 }}
+              style={{
+                height: 150,
+                width: 150,
+                transform: [{ rotate: "270deg" }],
+              }}
             />
+            <Text style={{ textAlign: "center", fontWeight: "bold" }}>
+              Gender : {image2Gender}
+            </Text>
           </View>
         ) : (
           <View

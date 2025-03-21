@@ -1,7 +1,15 @@
 import React from "react";
-import { Modal, View, Text, Image, Pressable, StyleSheet } from "react-native";
+import {
+  Modal,
+  View,
+  Text,
+  Image,
+  Pressable,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
 
-const CustomModal = ({ visible, photoPath, onVerify, onClose }) => {
+const CustomModal = ({ visible, photoPath, onVerify, onClose, isLoading }) => {
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
@@ -17,7 +25,11 @@ const CustomModal = ({ visible, photoPath, onVerify, onClose }) => {
           )}
           <View style={styles.buttonContainer}>
             <Pressable onPress={onVerify} style={styles.button}>
-              <Text style={styles.buttonText}>Save</Text>
+              {isLoading ? (
+                <ActivityIndicator color={"white"} size={22} />
+              ) : (
+                <Text style={styles.buttonText}>Save</Text>
+              )}
             </Pressable>
             <Pressable onPress={onClose} style={styles.button}>
               <Text style={styles.buttonText}>Re-capture</Text>

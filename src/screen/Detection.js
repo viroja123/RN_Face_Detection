@@ -161,9 +161,9 @@ function FaceDetection({ navigation }) {
   };
 
   const handleStart = async () => {
-    console.log("call the handleStart--------------->");
+    // console.log("call the handleStart--------------->");
     const result = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-    console.log("result------------->", result);
+    // console.log("result------------->", result);
     if (!result.granted) {
       console.warn("Permissions not granted", result);
       return;
@@ -188,7 +188,7 @@ function FaceDetection({ navigation }) {
   };
 
   const handleFacesDetected = (faces) => {
-    console.log("faces----------------", JSON.stringify(faces));
+    // console.log("faces----------------", JSON.stringify(faces));
     if (!faces) {
       runOnJS(resetBoundingBox)();
     }

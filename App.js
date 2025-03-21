@@ -1,5 +1,5 @@
-import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import React, { useEffect } from "react";
+import { NativeModules, StyleSheet, Text, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import MainNavigator from "./src/screen/Navigator.js";
@@ -17,6 +17,7 @@ export default function App() {
         <StatusBar style="auto" />
       </View> */}
           {/* <Detection /> */}
+          {/* <ToastManager /> */}
 
           <MainNavigator />
         </View>
