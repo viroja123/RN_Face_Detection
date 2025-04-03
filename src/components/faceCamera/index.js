@@ -106,7 +106,6 @@ const FaceCameraDetector = ({
       console.log("Photo captured:", photo ? "success" : "failed");
       const base64 = await RNFS.readFile(photo?.path, "base64");
       if (photo && photo?.path) {
-        // console.log("photo", photo);
         setPhotoPath("file://" + photo.path);
         setImageBase(base64);
         setShowModal(true);

@@ -11,17 +11,15 @@ const MATCH_THRESHOLD = 75;
 const SUCCESS_THRESHOLD = 75; // Define a reasonable match percentage
 const SAMPLE_SENTENCES = [
   "Good Morning How Are you!",
-  "The quick brown fox jumps over the lazy dog.",
-  "Pack my box with a dozen liquor jugs.",
+  "Pack my box with a jugs.",
   "The five boxing wizards jump quickly.",
-  "The early bird catches the worm, but the second mouse gets the cheese.",
-  "A journey of a thousand miles begins with a single step.",
-  "All that glitters is not gold; all that wanders is not lost.",
-  "Do not count your chickens before they are hatched.",
+  "The early bird catches the worm",
+  "A journey of a thousand miles",
+  "All that glitters is not gold",
+  "The red panda had a party",
 ];
 
 const AudioTest = ({ onMatchSuccess, isFaceDetected }) => {
-  console.log("isFaceDetected1111", isFaceDetected);
   const [transcript, setTranscript] = useState("");
   const [currentSentence, setCurrentSentence] = useState("");
   const [matchPercentage, setMatchPercentage] = useState(0);
@@ -241,3 +239,282 @@ const styles = StyleSheet.create({
 });
 
 export default AudioTest;
+
+// import { ExpoSpeechRecognitionModule } from "expo-speech-recognition";
+// import React, { Component } from "react";
+// import {
+//   Alert,
+//   PermissionsAndroid,
+//   PixelRatio,
+//   Platform,
+//   StyleSheet,
+//   Text,
+//   TouchableOpacity,
+//   View,
+// } from "react-native";
+// // import { GCanvasView } from "@flyskywhy/react-native-gcanvas";
+// // if (Platform.OS !== "web") {
+// //   var { PERMISSIONS, request } = require("react-native-permissions").default;
+// // }
+// import LiveAudioStream, {
+//   PowerLevel,
+//   NativeRecordReceivePCM,
+//   WaveSurferView,
+//   FrequencyHistogramView,
+// } from "react-native-live-audio-fft";
+// import { Buffer } from "buffer";
+// import { GCanvasView } from "@flyskywhy/react-native-gcanvas";
+// global.Buffer = Buffer;
+
+// const optionsOfLiveAudioStream = {
+//   sampleRate: 32000, // default is 44100 but 32000 is adequate for accurate voice recognition, maybe even music
+//   channels: 1, // 1 or 2, default 1
+//   bitsPerSample: 16, // 8 or 16, default 16
+//   audioSource: 1, // android only, 1 for music, 6 for voice recognition, default is 6
+//   bufferSize: 1024, // default is 2048
+// };
+
+// const histogramSetScale = 1; // if is not 1, e.g. PixelRatio.get(), you should define devicePixelRatio of <GCanvasView/> (see below)
+
+// // ref to initWaveStore() in
+// // https://github.com/xiangyuecn/Recorder/blob/master/app-support-sample/index.html
+// const histogramSet = {
+//   // canvas, // e.g. https://github.com/flyskywhy/react-native-gcanvas
+//   // ctx,
+//   width: 100, // if canvas is not defined, at least must define width and height
+//   height: 100, // if canvas is defined, it is allowed to not define width and height
+//   scale: histogramSetScale, // if histogramSetScale is 1, you can remove this line because default is 1
+//   asyncFftAtFps: false, // default is true, if you want draw on every onAudioPcmData(), you should set it to false
+//   lineCount: 20,
+//   minHeight: 1,
+//   stripeEnable: false,
+// };
+
+// const histogram = FrequencyHistogramView(histogramSet);
+
+// const waveSurferWidth = 300;
+// const waveSurferHeight = 100;
+
+// export default class AudioWaveSurfer extends Component {
+//   constructor(props) {
+//     super(props);
+//     this.state = {
+//       hasOc1: false,
+//     };
+
+//     // Initialize histogram here
+//     this.canvas = null;
+//     LiveAudioStream.on("data", this.onAudioPcmData);
+//   }
+
+//   async componentDidMount() {
+//     try {
+//       const { status } =
+//         await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+//       // setHasPermission(status === "granted");
+//       console.log("status------------>", status);
+//       if (status !== "granted") {
+//         Alert.alert(
+//           "Permission Denied",
+//           "Please grant microphone permissions to use speech recognition"
+//         );
+//       }
+//     } catch (error) {
+//       console.error("Error requesting microphone permission:", error);
+//       Alert.alert("Error", "Could not request microphone permission");
+//     }
+//     if (Platform.OS === "web") {
+//       const resizeObserver = new ResizeObserver((entries) => {
+//         for (let entry of entries) {
+//           if (entry.target.id === "canvasExample") {
+//             let { width, height } = entry.contentRect;
+//             this.onCanvasResize({ width, height, canvas: entry.target });
+//           }
+//         }
+//       });
+//       resizeObserver.observe(document.getElementById("canvasExample"));
+//     }
+//   }
+
+//   initCanvas = (canvas) => {
+//     if (this.canvas) {
+//       return;
+//     }
+//     console.log("canvas", canvas);
+//     this.canvas = canvas;
+//     if (Platform.OS === "web") {
+//       // canvas.width not equal canvas.clientWidth but "Defaults to 300" ref
+//       // to https://developer.mozilla.org/en-US/docs/Web/HTML/Element/canvas,
+//       // so have to assign again, unless <canvas width=SOME_NUMBER/> in render()
+//       this.canvas.width = this.canvas.clientWidth;
+//       this.canvas.height = this.canvas.clientHeight;
+//     }
+//     // should not name this.context because this.context is already be {} here and will
+//     // be {} again after componentDidUpdate() on react-native or react-native-web, so
+//     // name this.ctx
+//     this.ctx = this.canvas.getContext("2d");
+
+//     const offscreenCanvas = document.createElement("canvas");
+//     const offscreenCanvasCtx = offscreenCanvas.getContext("2d");
+
+//     const waveSurferSet = {
+//       canvas: this.canvas,
+//       ctx: this.ctx,
+//       canvas2: offscreenCanvas,
+//       ctx2: offscreenCanvasCtx,
+//       fps: 10, // refresh speed, will stuck if too high with https://github.com/flyskywhy/react-native-gcanvas
+//       duration: 2000, // move speed, smaller is faster
+//     };
+//     this.waveSurfer = WaveSurferView(waveSurferSet);
+//   };
+
+//   onCanvasResize = ({ width, height, canvas }) => {
+//     canvas.width = width;
+//     canvas.height = height;
+
+//     this.waveSurfer.set.width = width;
+//     this.waveSurfer.set.height = height;
+//   };
+
+//   onAudioPcmData = (pcmDataBase64) => {
+//     // console.log("pcmDataBase64", pcmDataBase64);
+//     const { pcmData, sum } = NativeRecordReceivePCM(pcmDataBase64);
+//     // const pcmData = Buffer.from(pcmDataBase64, "base64"); // Decode Base64 to PCM Data
+//     // console.log("pcmData", pcmData);
+//     // console.log("sum", pcmData);
+//     const powerLevel = PowerLevel(sum, pcmData.length);
+//     console.log("powerLevel", powerLevel);
+//     const frequencyData = histogram.input(
+//       pcmData,
+//       0 /* powerLevel, useless in histogram */,
+//       optionsOfLiveAudioStream.sampleRate
+//     );
+//     // console.log("frequencyData", frequencyData);
+
+//     if (histogram.set.asyncFftAtFps === false) {
+//       if (histogram.set.canvas) {
+//         // draw() will invoke frequencyData2H() automatically then draw
+//         // on this.histogram.set.canvas
+//         histogram.draw(frequencyData, optionsOfLiveAudioStream.sampleRate);
+//       } else if (histogram.set.width && histogram.set.height) {
+//         const { lastH, stripesH, originY, heightY, frequencies, gender } =
+//           histogram.frequencyData2H({
+//             frequencyData,
+//             sampleRate: optionsOfLiveAudioStream.sampleRate,
+//           });
+//         console.log("gender", gender);
+//       }
+//     }
+//     // ref to envIn() in
+//     // https://github.com/xiangyuecn/Recorder/blob/master/src/recorder-core.js
+//     // ref to onProcess() in
+//     // https://github.com/xiangyuecn/Recorder/blob/master/app-support-sample/index.html
+//     // ref to WaveSurferView.input() in
+//     // https://github.com/xiangyuecn/Recorder/blob/1.2.23070100/src/extensions/wavesurfer.view.js
+//     // this.waveSurfer.input(
+//     //   pcmData,
+//     //   0 /* powerLevel, useless in waveSurfer */,
+//     //   optionsOfLiveAudioStream.sampleRate
+//     // );
+//   };
+
+//   startAudioRecoder = async () => {
+//     console.log("call the =================audio start");
+//     // const status1 = await request(
+//     //   Platform.select({
+//     //     android: PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+//     //     ios: PermissionsAndroid.PERMISSIONS.MICROPHONE,
+//     //   })
+//     // );
+//     // console.log("status1------------->", status1);
+//     // const { status } =
+//     //   await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+//     // console.log("status", status);
+//     // if (status === "granted") {
+//     console.log("start--------------");
+//     LiveAudioStream.stop();
+//     LiveAudioStream.init(optionsOfLiveAudioStream);
+//     console.log("after init");
+//     LiveAudioStream.start();
+//     // }
+//   };
+
+//   stopAudioRecorder = () => {
+//     console.log("call the stop");
+//     LiveAudioStream.stop();
+//   };
+//   render() {
+//     // console.log("this.state.hasOc1------->", this.state.hasOc1);
+//     return (
+//       <View style={styles.container}>
+//         {/* {Platform.OS !== "web" && (
+//           <GCanvasView
+//             style={{
+//               width: waveSurferWidth * 2,
+//               height: waveSurferHeight,
+//               position: "absolute",
+//               left: 1000, // 1000 should enough to not display on screen means offscreen canvas :P
+//               top: 0,
+//               zIndex: -100, // -100 should enough to not bother onscreen canvas
+//             }}
+//             offscreenCanvas={true}
+//             onCanvasCreate={(canvas) => {
+//               this.setState({ hasOc1: true });
+//             }}
+//             isGestureResponsible={false}
+//           />
+//         )} */}
+//         <TouchableOpacity onPress={this.startAudioRecoder}>
+//           <Text style={styles.welcome}>Start audio recoder</Text>
+//         </TouchableOpacity>
+//         <View
+//           style={{
+//             width: waveSurferWidth,
+//             height: waveSurferHeight,
+//             backgroundColor: "#FF000030",
+//           }}
+//         >
+//           <View style={{ width: 10, backgroundColor: "red" }}>
+//             <Text>Gender :</Text>{}
+//             {/* <GCanvasView
+//               onCanvasResize={this.onCanvasResize}
+//               onCanvasCreate={this.initCanvas}
+//               isGestureResponsible={false}
+//               style={styles.gcanvas}
+//             /> */}
+//           </View>
+//         </View>
+//         <TouchableOpacity onPress={this.stopAudioRecorder}>
+//           <Text style={styles.welcome}>Stop audio recoder</Text>
+//         </TouchableOpacity>
+//       </View>
+//     );
+//   }
+// }
+
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//     justifyContent: "center",
+//     alignItems: "center",
+//     backgroundColor: "#F5FCFF",
+//   },
+//   gcanvas: {
+//     flex: 1,
+//     width: "100%",
+//     // above maybe will cause
+//     //     WARN     getImageData: not good to be here, should refactor source code somewhere
+//     // if let this component as a children of another component,
+//     // you can use below
+//     // width: waveSurferWidth,
+//     // height: waveSurferHeight,
+
+//     // backgroundColor: '#FF000030', // TextureView doesn't support displaying a background drawable since Android API 24
+//   },
+//   welcome: {
+//     color: "black",
+//     fontSize: 20,
+//     textAlign: "center",
+//     marginVertical: 20,
+//   },
+// });

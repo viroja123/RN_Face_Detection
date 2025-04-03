@@ -17,12 +17,8 @@ import AudioTest from "../components/audioTest";
 import ToastManager, { Toast } from "toastify-react-native";
 import FaceSDK, {
   Enum,
-  FaceCaptureResponse,
   LivenessResponse,
-  MatchFacesResponse,
-  MatchFacesRequest,
   MatchFacesImage,
-  ComparedFacesSplit,
   InitConfig,
   InitResponse,
   LivenessSkipStep,
@@ -33,11 +29,13 @@ import MatchImage from "../components/MatchImages";
 import * as RNFS from "react-native-fs";
 import invokeGenderDetector from "../hook/UseFaceGender";
 import { uploadImageToStorage } from "../utils/method";
+import AudioTestAV from "../components/audioTest/AudioTestAV";
 
 const steps = [
   "Start",
   "Face Detection & Gender Detection",
-  "Audio Test",
+  "Audio Test [expo-speech-recognition]",
+  "Audio Detection",
   "Liveness",
   "Matching Image",
   "Complete",
@@ -46,6 +44,7 @@ const steps = [
 const Progressing = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isNextDisabled, setIsNextDisabled] = useState(false);
+  const [similarityImage, setSimilarityImage] = useState(0);
   const [faceDetected, setFaceDetected] = useState(false);
   const { hasPermission, requestPermission } = useCameraPermission();
   const [liveness, setLiveness] = useState("nil");
@@ -54,6 +53,7 @@ const Progressing = () => {
   const [similarity, setSimilarity] = useState("nil");
   const image1Ref = useRef(new MatchFacesImage());
   const image2Ref = useRef(new MatchFacesImage());
+  console.log("currentStep", currentStep);
   useEffect(() => {
     if (!hasPermission) requestPermission();
   }, []);
@@ -62,16 +62,16 @@ const Progressing = () => {
     if (currentStep === 1) {
       checkStoredImageData();
     }
-    if (currentStep === 3) {
+    if (currentStep === 4) {
       setIsNextDisabled(true);
     }
   }, [currentStep]);
 
   useEffect(() => {
     // Enable Next button when liveness is "passed"
-    if (liveness === "passed" && currentStep === 3) {
+    if (liveness === "passed" && currentStep === 4) {
       setIsNextDisabled(false);
-    } else if (liveness === "nil" && currentStep === 3) {
+    } else if (liveness === "nil" && currentStep === 4) {
       setIsNextDisabled(true);
     }
   }, [liveness, currentStep]);
@@ -292,6 +292,7 @@ const Progressing = () => {
 
     if (similarityValue > 75) {
       setIsNextDisabled(false);
+      setSimilarityImage(similarityValue);
       handleNextStep();
       Toast.success(`Image Match Successfully`, "bottom");
       console.log(`High similarity detected: ${similarityValue}%`);
@@ -336,6 +337,16 @@ const Progressing = () => {
       </View>
 
       {currentStep === 3 && (
+        <AudioTestAV
+          onNextCall={(isDetected) => {
+            setIsNextDisabled(!isDetected);
+            console.log("isMatched", isDetected);
+          }}
+          isFaceDetected={faceDetected}
+        />
+      )}
+
+      {currentStep === 4 && (
         <View>
           <Text
             style={{
@@ -356,7 +367,7 @@ const Progressing = () => {
             <Text style={styles.buttonText}>Start Liveness</Text>
           </TouchableOpacity>
 
-          {currentStep === 3 && (
+          {currentStep === 4 && (
             <Text style={{ textAlign: "center", fontWeight: "bold" }}>
               liveness: {liveness}
             </Text>
@@ -364,7 +375,7 @@ const Progressing = () => {
         </View>
       )}
 
-      {currentStep === 4 && (
+      {currentStep === 5 && (
         <MatchImage
           image1={img1}
           image2={img2}
@@ -375,7 +386,7 @@ const Progressing = () => {
         />
       )}
 
-      {currentStep === 5 && (
+      {currentStep === 6 && (
         <View>
           <Image
             source={require("../images/correct.png")}
@@ -387,6 +398,10 @@ const Progressing = () => {
               marginBottom: 30,
             }}
           />
+          <Text style={{ textAlign: "center" }}>
+            Image Similarity :{" "}
+            <Text style={{ fontWeight: "bold" }}>{similarityImage}%</Text>
+          </Text>
           {/* <View
             style={{
               marginTop: 10,
@@ -417,29 +432,32 @@ const Progressing = () => {
           </Text>
         </View>
       )}
-      {currentStep !== 2 && currentStep !== 3 && currentStep !== 5 && (
-        <View
-          style={{
-            backgroundColor: "#FFB6D9",
-            padding: 10,
-            alignSelf: "center",
-            borderRadius: 10,
-            marginBottom: 8,
-          }}
-        >
-          <Text style={{ fontSize: 14, marginTop: 5, color: "black" }}>
-            {currentStep === 0 &&
-              "Ensure you are in a well-lit environment with a clear background. Position your face in the center of the camera frame."}
-            {currentStep === 1 &&
-              "Stay still and face the camera directly. Ensure your entire face is visible without obstructions."}
+      {currentStep !== 2 &&
+        currentStep !== 3 &&
+        currentStep !== 4 &&
+        currentStep !== 6 && (
+          <View
+            style={{
+              backgroundColor: "#FFB6D9",
+              padding: 10,
+              alignSelf: "center",
+              borderRadius: 10,
+              marginBottom: 8,
+            }}
+          >
+            <Text style={{ fontSize: 14, marginTop: 5, color: "black" }}>
+              {currentStep === 0 &&
+                "Ensure you are in a well-lit environment with a clear background. Position your face in the center of the camera frame."}
+              {currentStep === 1 &&
+                "Stay still and face the camera directly. Ensure your entire face is visible without obstructions."}
 
-            {/* {currentStep === 3 &&
+              {/* {currentStep === 3 &&
               "Follow the on-screen prompts (e.g., smile or turn your head) with smooth and natural movements."} */}
-            {currentStep === 4 &&
-              "Comparing your live image with the registered image for verification. Please wait."}
-          </Text>
-        </View>
-      )}
+              {currentStep === 5 &&
+                "Comparing your live image with the registered image for verification. Please wait."}
+            </Text>
+          </View>
+        )}
 
       <View style={{ height: 215 }}>
         <StepIndicator
@@ -460,7 +478,7 @@ const Progressing = () => {
           <Text style={styles.buttonText}>Reset</Text>
         </TouchableOpacity>
 
-        {currentStep !== 5 && (
+        {currentStep !== 6 && (
           <TouchableOpacity
             style={[
               styles.button,
